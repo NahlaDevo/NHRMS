@@ -908,3 +908,10 @@ CREATE TABLE notifications (
 2026-05-24 01:48:29,524 - sqlalchemy.engine.Engine - INFO - COMMIT
 2026-05-24 01:51:00,748 - Nahla HR Management System - INFO - User logged in: HR-S
 2026-05-24 02:02:11,149 - watchfiles.main - INFO - 35 changes detected
+2026-05-24 02:02:13,085 - watchfiles.main - INFO - 488 changes detected
+2026-05-24 02:02:13,486 - watchfiles.main - INFO - 91 changes detected
+2026-05-24 02:02:14,115 - watchfiles.main - INFO - 4 changes detected
+2026-05-24 02:02:24,637 - watchfiles.main - INFO - 1 change detected
+2026-05-24 02:04:08,581 - watchfiles.main - INFO - 5 changes detected
+2026-05-24 02:08:46,956 - watchfiles.main - INFO - 5 changes detected
+2026-05-24 02:10:15,966 - watchfiles.main - INFO - 1 change detected

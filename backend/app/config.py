@@ -68,14 +68,13 @@ class Settings:
 
     ALLOWED_HOSTS: list = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com").split(",")
 
-    CORS_ORIGINS: list = [
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://localhost:5173",
-        "https://hr-saas-api.onrender.com",
-        "https://hr-saas-frontend.onrender.com",
-        "https://hr-saas.onrender.com",
-    ]
+    CORS_ORIGINS: list = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,https://nhrms-api.onrender.com,https://nhrms-frontend.onrender.com"
+    ).split(",")
+
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://nhrms-frontend.onrender.com")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
 
 settings = Settings()
