@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-backend dev-frontend migrate seed test lint clean docker-up docker-down docker-reset-db reset-db secret-key
+.PHONY: help install dev dev-backend dev-frontend migrate seed test lint clean docker-up docker-down docker-reset-db reset-db secret-key deploy-check docker-up-all docker-down-all docker-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -19,8 +19,17 @@ dev: ## Start both backend and frontend (requires two terminals)
 docker-up: ## Start PostgreSQL and Redis
 	docker compose up -d postgres redis
 
+docker-up-all: ## Start all services (full stack)
+	docker compose up --build -d
+
 docker-down: ## Stop all Docker services
 	docker compose down
+
+docker-down-all: ## Stop all services and remove volumes
+	docker compose down -v
+
+docker-logs: ## Follow logs from all services
+	docker compose logs -f
 
 docker-reset-db: ## Reset PostgreSQL database
 	docker compose down -v postgres
@@ -31,7 +40,7 @@ docker-reset-db: ## Reset PostgreSQL database
 migrate: ## Run database migrations
 	alembic upgrade head
 
-migrate-new: ## Create a new migration
+migrate-new: ## Create a new migration (usage: make migrate-new name="description")
 	alembic revision --autogenerate -m "$(name)"
 
 seed: ## Seed the database with test data
@@ -44,8 +53,10 @@ test-coverage: ## Run tests with coverage report
 	python -m pytest tests/ --cov=backend/app --cov-report=term-missing
 
 lint: ## Run linter
-	pip install ruff
 	ruff check backend/
+
+deploy-check: ## Run deployment readiness checks
+	python scripts/deploy_check.py
 
 clean: ## Clean up temporary files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

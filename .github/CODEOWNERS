@@ -1,0 +1,9 @@
+[*]
+*.md @team-leads
+
+backend/ @backend-team
+frontend/ @frontend-team
+scripts/ @devops-team
+.github/ @devops-team
+docker-compose.yml @devops-team
+render.yaml @devops-team
