@@ -882,3 +882,29 @@ CREATE TABLE notifications (
 2026-05-24 01:13:27,089 - sqlalchemy.engine.Engine - INFO - CREATE INDEX ix_notifications_user_id ON notifications (user_id)
 2026-05-24 01:13:27,089 - sqlalchemy.engine.Engine - INFO - [no key 0.00036s] ()
 2026-05-24 01:13:27,111 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-05-24 01:48:26,190 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-05-24 01:48:26,191 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("saas_users")
+2026-05-24 01:48:26,191 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:26,198 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("candidates")
+2026-05-24 01:48:26,198 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:26,198 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("jobs")
+2026-05-24 01:48:26,198 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:26,199 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("interviews")
+2026-05-24 01:48:26,199 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:26,201 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("notifications")
+2026-05-24 01:48:26,202 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:26,205 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-05-24 01:48:29,515 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-05-24 01:48:29,515 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("saas_users")
+2026-05-24 01:48:29,516 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:29,520 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("candidates")
+2026-05-24 01:48:29,521 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:29,522 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("jobs")
+2026-05-24 01:48:29,522 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:29,523 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("interviews")
+2026-05-24 01:48:29,523 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:29,524 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("notifications")
+2026-05-24 01:48:29,524 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-05-24 01:48:29,524 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-05-24 01:51:00,748 - Nahla HR Management System - INFO - User logged in: HR-S
+2026-05-24 02:02:11,149 - watchfiles.main - INFO - 35 changes detected
