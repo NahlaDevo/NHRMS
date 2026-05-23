@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATS Dashboard - HR SaaS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .kanban-column { min-height: 400px; }
+    .candidate-card { cursor: grab; }
+    .candidate-card:active { cursor: grabbing; opacity: 0.8; }
+    .badge-new { background: #dbeafe; color: #1e40af; }
+    .badge-review { background: #fef3c7; color: #92400e; }
+    .badge-interview { background: #d1fae5; color: #065f46; }
+    .badge-hired { background: #d1fae5; color: #065f46; }
+    .badge-rejected { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold text-gray-800">HR SaaS</h1>
+        <span class="text-sm text-gray-500">ATS Dashboard</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <select id="companySelect" class="text-sm border rounded px-2 py-1" onchange="switchCompany()">
+          <option value="COMPANY_1">Company 1</option>
+          <option value="COMPANY_2">Company 2</option>
+        </select>
+        <span id="userBadge" class="text-sm text-gray-600"></span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 mb-6 border-b pb-2">
+      <button onclick="showTab('dashboard')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t text-blue-600 border-b-2 border-blue-600" data-tab="dashboard">Dashboard</button>
+      <button onclick="showTab('jobs')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t text-gray-500 hover:text-gray-700" data-tab="jobs">Jobs</button>
+      <button onclick="showTab('candidates')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t text-gray-500 hover:text-gray-700" data-tab="candidates">Candidates</button>
+      <button onclick="showTab('upload')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t text-gray-500 hover:text-gray-700" data-tab="upload">Upload CV</button>
+      <button onclick="showTab('interviews')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t text-gray-500 hover:text-gray-700" data-tab="interviews">Interviews</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content">
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-lg shadow-sm border"><div class="text-sm text-gray-500">Total Jobs</div><div id="statTotalJobs" class="text-2xl font-bold">-</div></div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border"><div class="text-sm text-gray-500">Open Jobs</div><div id="statOpenJobs" class="text-2xl font-bold">-</div></div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border"><div class="text-sm text-gray-500">Candidates</div><div id="statCandidates" class="text-2xl font-bold">-</div></div>
+        <div class="bg-white p-4 rounded-lg shadow-sm border"><div class="text-sm text-gray-500">Avg Score</div><div id="statAvgScore" class="text-2xl font-bold">-</div></div>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow-sm border">
+        <canvas id="dashboardChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <!-- Jobs Tab -->
+    <div id="tab-jobs" class="tab-content hidden">
+      <div class="flex justify-between mb-4">
+        <h2 class="text-lg font-semibold">Job Listings</h2>
+        <button onclick="showJobForm()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">+ New Job</button>
+      </div>
+      <div id="jobForm" class="hidden bg-white p-4 rounded-lg shadow-sm border mb-4">
+        <h3 class="font-medium mb-3">Create Job</h3>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <input id="jobTitle" placeholder="Job Title" class="border rounded px-3 py-2 text-sm">
+          <input id="jobDept" placeholder="Department" class="border rounded px-3 py-2 text-sm">
+        </div>
+        <textarea id="jobDesc" placeholder="Description" class="border rounded px-3 py-2 text-sm w-full mb-3" rows="2"></textarea>
+        <textarea id="jobKeywords" placeholder="Keywords (comma separated: python, fastapi, react)" class="border rounded px-3 py-2 text-sm w-full mb-3" rows="1"></textarea>
+        <div class="flex gap-2">
+          <button onclick="createJob()" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Save</button>
+          <button onclick="hideJobForm()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">Cancel</button>
+        </div>
+      </div>
+      <div id="jobsList" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Candidates Tab (Kanban) -->
+    <div id="tab-candidates" class="tab-content hidden">
+      <div class="flex gap-4 overflow-x-auto pb-4">
+        <div class="kanban-column bg-gray-100 rounded-lg p-3 min-w-[250px] flex-1" data-status="new">
+          <h3 class="text-sm font-semibold mb-3 text-blue-700">New</h3>
+          <div id="kanban-new" class="space-y-2"></div>
+        </div>
+        <div class="kanban-column bg-gray-100 rounded-lg p-3 min-w-[250px] flex-1" data-status="review">
+          <h3 class="text-sm font-semibold mb-3 text-yellow-700">Under Review</h3>
+          <div id="kanban-review" class="space-y-2"></div>
+        </div>
+        <div class="kanban-column bg-gray-100 rounded-lg p-3 min-w-[250px] flex-1" data-status="interview">
+          <h3 class="text-sm font-semibold mb-3 text-green-700">Interview</h3>
+          <div id="kanban-interview" class="space-y-2"></div>
+        </div>
+        <div class="kanban-column bg-gray-100 rounded-lg p-3 min-w-[250px] flex-1" data-status="hired">
+          <h3 class="text-sm font-semibold mb-3 text-green-700">Hired</h3>
+          <div id="kanban-hired" class="space-y-2"></div>
+        </div>
+        <div class="kanban-column bg-gray-100 rounded-lg p-3 min-w-[250px] flex-1" data-status="rejected">
+          <h3 class="text-sm font-semibold mb-3 text-red-700">Rejected</h3>
+          <div id="kanban-rejected" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload CV Tab -->
+    <div id="tab-upload" class="tab-content hidden">
+      <div class="bg-white p-6 rounded-lg shadow-sm border max-w-lg">
+        <h2 class="text-lg font-semibold mb-4">Upload Candidate CV</h2>
+        <div class="mb-3">
+          <label class="text-sm text-gray-600">Full Name</label>
+          <input id="cvName" class="border rounded px-3 py-2 w-full text-sm">
+        </div>
+        <div class="mb-3">
+          <label class="text-sm text-gray-600">Email</label>
+          <input id="cvEmail" type="email" class="border rounded px-3 py-2 w-full text-sm">
+        </div>
+        <div class="mb-3">
+          <label class="text-sm text-gray-600">Job (optional)</label>
+          <select id="cvJobId" class="border rounded px-3 py-2 w-full text-sm"></select>
+        </div>
+        <div class="mb-4">
+          <label class="text-sm text-gray-600">CV File (PDF)</label>
+          <input id="cvFile" type="file" accept=".pdf" class="border rounded px-3 py-2 w-full text-sm">
+        </div>
+        <button onclick="uploadCv()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm hover:bg-blue-700">Upload & Score</button>
+        <div id="cvResult" class="mt-4 hidden"></div>
+      </div>
+    </div>
+
+    <!-- Interviews Tab -->
+    <div id="tab-interviews" class="tab-content hidden">
+      <div class="bg-white p-4 rounded-lg shadow-sm border mb-4">
+        <h3 class="font-medium mb-3">Schedule Interview</h3>
+        <div class="grid grid-cols-4 gap-3 mb-3">
+          <select id="intCandidateId" class="border rounded px-3 py-2 text-sm"></select>
+          <select id="intJobId" class="border rounded px-3 py-2 text-sm"></select>
+          <input id="intTime" type="datetime-local" class="border rounded px-3 py-2 text-sm">
+          <input id="intDuration" type="number" placeholder="Duration (min)" value="60" class="border rounded px-3 py-2 text-sm">
+        </div>
+        <button onclick="scheduleInterview()" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Schedule</button>
+      </div>
+      <div id="interviewsList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = axios.create({ baseURL: window.location.origin + '/api' });
+
+    function getCompany() {
+      return document.getElementById('companySelect').value;
+    }
+
+    function apiHeaders() {
+      const token = localStorage.getItem('token');
+      const headers = { 'X-Company-ID': getCompany() };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+
+    function showTab(name) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-' + name).classList.remove('hidden');
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        el.classList.add('text-gray-500');
+      });
+      const btn = document.querySelector(`[data-tab="${name}"]`);
+      if (btn) {
+        btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        btn.classList.remove('text-gray-500');
+      }
+      if (name === 'dashboard') loadDashboard();
+      if (name === 'jobs') loadJobs();
+      if (name === 'candidates') loadCandidates();
+      if (name === 'upload') loadJobSelect();
+      if (name === 'interviews') { loadInterviewSelects(); loadInterviews(); }
+    }
+
+    function switchCompany() {
+      ['dashboard','jobs','candidates','interviews'].forEach(t => {
+        if (!document.getElementById('tab-' + t).classList.contains('hidden')) showTab(t);
+      });
+    }
+
+    // ── DASHBOARD ──
+    async function loadDashboard() {
+      try {
+        const res = await API.get('/ats/dashboard/stats', { headers: apiHeaders() });
+        const d = res.data;
+        document.getElementById('statTotalJobs').textContent = d.total_jobs;
+        document.getElementById('statOpenJobs').textContent = d.open_jobs;
+        document.getElementById('statCandidates').textContent = d.total_candidates;
+        document.getElementById('statAvgScore').textContent = d.avg_score;
+        const ctx = document.getElementById('dashboardChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(d.status_breakdown || {}),
+            datasets: [{ label: 'Candidates', data: Object.values(d.status_breakdown || {}), backgroundColor: ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444'] }]
+          },
+          options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+      } catch(e) { console.error('Dashboard error:', e); }
+    }
+
+    // ── JOBS ──
+    async function loadJobs() {
+      try {
+        const res = await API.get('/ats/jobs', { headers: apiHeaders() });
+        const jobs = res.data;
+        const container = document.getElementById('jobsList');
+        if (jobs.length === 0) { container.innerHTML = '<p class="text-gray-500 col-span-2">No jobs yet.</p>'; return; }
+        container.innerHTML = jobs.map(j => `
+          <div class="bg-white p-4 rounded-lg shadow-sm border">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-semibold">${j.title}</h3>
+                <p class="text-sm text-gray-500">${j.department}</p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded ${j.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${j.status}</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Keywords: ${j.keywords || '—'}</p>
+          </div>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    let editingJobId = null;
+    function showJobForm() {
+      document.getElementById('jobForm').classList.remove('hidden');
+    }
+    function hideJobForm() {
+      document.getElementById('jobForm').classList.add('hidden');
+      document.getElementById('jobTitle').value = '';
+      document.getElementById('jobDept').value = '';
+      document.getElementById('jobDesc').value = '';
+      document.getElementById('jobKeywords').value = '';
+    }
+    async function createJob() {
+      const data = {
+        title: document.getElementById('jobTitle').value,
+        department: document.getElementById('jobDept').value,
+        description: document.getElementById('jobDesc').value,
+        keywords: document.getElementById('jobKeywords').value,
+      };
+      await API.post('/ats/jobs', data, { headers: apiHeaders() });
+      hideJobForm();
+      loadJobs();
+    }
+
+    // ── CANDIDATES (KANBAN) ──
+    async function loadCandidates() {
+      try {
+        const res = await API.get('/ats/candidates', { headers: apiHeaders() });
+        const candidates = res.data;
+        const statuses = ['new', 'review', 'interview', 'hired', 'rejected'];
+        statuses.forEach(s => {
+          const el = document.getElementById('kanban-' + s);
+          const items = candidates.filter(c => c.status === s);
+          el.innerHTML = items.map(c => `
+            <div class="candidate-card bg-white p-3 rounded shadow-sm border text-sm" draggable="true"
+                 data-id="${c.id}" data-status="${s}"
+                 ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">
+              <div class="font-medium">${c.name}</div>
+              <div class="text-gray-500 text-xs">${c.email}</div>
+              <div class="flex justify-between mt-2">
+                <span class="text-xs font-semibold ${c.score >= 70 ? 'text-green-600' : c.score >= 40 ? 'text-yellow-600' : 'text-red-600'}">${c.score}%</span>
+                <span class="text-xs text-gray-400">${c.experience_years}y</span>
+              </div>
+              ${c.skills ? `<div class="text-xs text-gray-400 mt-1 truncate">${c.skills}</div>` : ''}
+            </div>
+          `).join('');
+        });
+        setupKanbanDrop();
+      } catch(e) { console.error(e); }
+    }
+
+    let draggedId = null;
+    function onDragStart(e) {
+      draggedId = e.target.dataset.id;
+      e.target.classList.add('opacity-50');
+    }
+    function onDragEnd(e) {
+      e.target.classList.remove('opacity-50');
+    }
+    function setupKanbanDrop() {
+      document.querySelectorAll('.kanban-column').forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('bg-blue-50'); });
+        col.addEventListener('dragleave', () => col.classList.remove('bg-blue-50'));
+        col.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          col.classList.remove('bg-blue-50');
+          const newStatus = col.dataset.status;
+          if (draggedId && newStatus) {
+            try {
+              await API.put('/ats/candidates/' + draggedId, { status: newStatus }, { headers: apiHeaders() });
+              loadCandidates();
+            } catch(err) { console.error(err); }
+          }
+        });
+      });
+    }
+
+    // ── UPLOAD CV ──
+    async function loadJobSelect() {
+      try {
+        const res = await API.get('/ats/jobs', { headers: apiHeaders() });
+        const sel = document.getElementById('cvJobId');
+        sel.innerHTML = '<option value="">No specific job</option>' + res.data.map(j => `<option value="${j.id}">${j.title}</option>`).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function uploadCv() {
+      const name = document.getElementById('cvName').value;
+      const email = document.getElementById('cvEmail').value;
+      const jobId = document.getElementById('cvJobId').value;
+      const fileInput = document.getElementById('cvFile');
+      if (!name || !email || !fileInput.files[0]) { alert('Please fill all required fields'); return; }
+      const form = new FormData();
+      form.append('name', name);
+      form.append('email', email);
+      form.append('cv', fileInput.files[0]);
+      if (jobId) form.append('job_id', jobId);
+      try {
+        const res = await API.post('/ats/candidate/upload', form, { headers: { ...apiHeaders(), 'Content-Type': 'multipart/form-data' } });
+        const d = res.data;
+        document.getElementById('cvResult').classList.remove('hidden');
+        document.getElementById('cvResult').innerHTML = `
+          <div class="bg-green-50 border border-green-200 rounded p-4">
+            <p class="font-semibold text-green-700">CV Scored!</p>
+            <p class="text-sm">Candidate: ${d.candidate.name}</p>
+            <p class="text-sm">Score: <span class="font-bold text-lg ${d.score_result.score >= 70 ? 'text-green-600' : d.score_result.score >= 40 ? 'text-yellow-600' : 'text-red-600'}">${d.score_result.score}%</span></p>
+            <p class="text-sm">Experience: ${d.score_result.experience_years} years</p>
+            <p class="text-sm">Skills: ${d.score_result.skills.slice(0, 8).join(', ')}</p>
+            <div class="mt-2 w-full bg-gray-200 rounded h-2"><div class="bg-blue-600 h-2 rounded" style="width:${d.score_result.score}%"></div></div>
+          </div>
+        `;
+      } catch(e) { console.error(e); alert('Upload failed'); }
+    }
+
+    // ── INTERVIEWS ──
+    async function loadInterviewSelects() {
+      try {
+        const [candRes, jobRes] = await Promise.all([
+          API.get('/ats/candidates', { headers: apiHeaders() }),
+          API.get('/ats/jobs', { headers: apiHeaders() })
+        ]);
+        const candSel = document.getElementById('intCandidateId');
+        candSel.innerHTML = '<option value="">Select candidate</option>' + candRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const jobSel = document.getElementById('intJobId');
+        jobSel.innerHTML = '<option value="">Select job</option>' + jobRes.data.map(j => `<option value="${j.id}">${j.title}</option>`).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function scheduleInterview() {
+      const candidate_id = document.getElementById('intCandidateId').value;
+      const job_id = document.getElementById('intJobId').value;
+      const time = document.getElementById('intTime').value;
+      const duration = document.getElementById('intDuration').value;
+      if (!candidate_id || !job_id || !time) { alert('Please fill all fields'); return; }
+      try {
+        await API.post('/interviews', {
+          candidate_id: parseInt(candidate_id),
+          job_id: parseInt(job_id),
+          scheduled_time: new Date(time).toISOString(),
+          duration_minutes: parseInt(duration) || 60,
+        }, { headers: apiHeaders() });
+        loadInterviews();
+        alert('Interview scheduled!');
+      } catch(e) { 
+        const msg = e.response?.data?.detail || 'Error scheduling';
+        alert(msg);
+      }
+    }
+
+    async function loadInterviews() {
+      try {
+        const res = await API.get('/interviews', { headers: apiHeaders() });
+        const container = document.getElementById('interviewsList');
+        const items = res.data;
+        if (items.length === 0) { container.innerHTML = '<p class="text-gray-500">No interviews scheduled.</p>'; return; }
+        container.innerHTML = items.map(i => `
+          <div class="bg-white p-3 rounded-lg shadow-sm border flex justify-between items-center">
+            <div>
+              <span class="font-medium">${i.candidate_name}</span>
+              <span class="text-gray-500 text-sm mx-2">—</span>
+              <span class="text-sm">${i.job_title}</span>
+              <div class="text-xs text-gray-400 mt-1">${new Date(i.scheduled_time).toLocaleString()} · ${i.duration_minutes}min</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded ${i.status === 'scheduled' ? 'bg-blue-100 text-blue-700' : i.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${i.status}</span>
+          </div>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    // ── AUTH CHECK ──
+    async function checkAuth() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        document.querySelector('nav').innerHTML = '<div class="max-w-7xl mx-auto px-4 py-4"><p>Please login first. <a href="/frontend/index.html" class="text-blue-600 underline">Go to Login</a></p></div>';
+        return;
+      }
+      try {
+        const res = await API.get('/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        document.getElementById('userBadge').textContent = res.data.username + ' (' + res.data.role + ')';
+      } catch(e) {
+        localStorage.removeItem('token');
+        location.reload();
+      }
+    }
+
+    checkAuth();
+    showTab('dashboard');
+  </script>
+</body>
+</html>

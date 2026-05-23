@@ -1,0 +1,93 @@
+version: "3.9"
+
+x-common: &common
+  env_file:
+    - .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nhrms-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nhrms
+      POSTGRES_PASSWORD: nhrms_dev
+      POSTGRES_DB: nhrms
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nhrms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nhrms-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: nhrms-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./scripts:/app/scripts
+      - uploads:/app/uploads
+      - static:/app/backend/static
+    environment:
+      DATABASE_URL: postgresql://nhrms:nhrms_dev@postgres:5432/nhrms
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+    <<: *common
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: nhrms-worker
+    command: python -m arq backend.app.worker.WorkerSettings
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      DATABASE_URL: postgresql://nhrms:nhrms_dev@postgres:5432/nhrms
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "false"
+    <<: *common
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nhrms-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:
+  static:

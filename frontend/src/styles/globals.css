@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply min-h-screen;
+}
+
+.kanban-column {
+  @apply bg-gray-50 rounded-lg p-3 min-h-[300px];
+}
+
+.candidate-card {
+  @apply cursor-grab;
+}
+.candidate-card:active {
+  @apply cursor-grabbing opacity-80;
+}
