@@ -75,7 +75,8 @@ services:
     plan: starter
     branch: develop
     buildCommand: cd frontend && npm ci && npm run build
-    staticPublishPath: backend/static
+    staticPublishPath: frontend/dist
+    pullRequestPreviewsEnabled: true
     headers:
       - path: /*
         name: X-Frame-Options
