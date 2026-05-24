@@ -1,0 +1,25 @@
+{
+  "name": "NHRMS Development",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": { "label": "API", "onAutoForward": "notify" },
+    "5173": { "label": "Frontend", "onAutoForward": "openBrowser" }
+  },
+  "postCreateCommand": "pip install --upgrade pip && pip install -r backend/requirements.txt && cp -n .env.example .env && cd frontend && npm install",
+  "postStartCommand": "cd backend && alembic upgrade head",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}
