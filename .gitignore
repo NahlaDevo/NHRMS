@@ -7,9 +7,18 @@ dist/
 
 # Environment
 .env
+.env.production
 *.db
 data/*.db
 data/*.xlsx
+data/
+
+# Logs
+*.log
+app.log
+
+# Backend runtime
+backend/static/dist/
 
 # Uploads
 uploads/*

@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
@@ -17,8 +17,24 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '..', 'backend', 'static'),
+    outDir: mode === 'production' ? 'dist' : path.resolve(__dirname, '..', 'backend', 'static'),
     emptyOutDir: true,
-    sourcemap: false,
+    sourcemap: mode !== 'production',
+    minify: 'terser',
+    terserOptions: {
+      compress: { drop_console: true },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          query: ['@tanstack/react-query'],
+          charts: ['recharts'],
+        },
+      },
+    },
   },
-});
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+  },
+}));

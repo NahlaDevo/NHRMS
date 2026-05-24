@@ -1,21 +1,32 @@
-from fastapi import FastAPI, Request, UploadFile, File, Depends
+from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi import WebSocket, WebSocketDisconnect
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from backend.app.config import settings
 from backend.app.routes import auth, employees, analytics, admin, attendance, payroll
 from backend.app.ats.routes import router as ats_router
 from backend.app.interviews.routes import router as interview_router
 from backend.app.notifications.routes import router as notification_router
-from backend.app.database.sa_setup import init_db
+from backend.app.database.sa_setup import init_db, engine
 from backend.app.utils.helpers import logger
 from backend.app.utils.security import decode_access_token, normalize_role, get_current_user
+from backend.app.exceptions import (
+    http_exception_handler,
+    validation_exception_handler,
+    unhandled_exception_handler,
+)
+from backend.app.middleware import RequestLoggingMiddleware, GlobalExceptionMiddleware
 
 
 connected_websockets: dict[str, list[WebSocket]] = {}
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 def create_app() -> FastAPI:
@@ -25,22 +36,35 @@ def create_app() -> FastAPI:
         description="Nahla HR Management System API",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
+        contact={"name": "NHRMS Team"},
     )
 
     init_db()
+
+    # Rate limiter
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Exception handlers
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(422, validation_exception_handler)
+    app.add_exception_handler(500, unhandled_exception_handler)
 
     if settings.SENTRY_DSN:
         try:
             import sentry_sdk
             sentry_sdk.init(
                 dsn=settings.SENTRY_DSN,
-                environment="production" if not settings.DEBUG else "development",
-                traces_sample_rate=0.2,
+                environment=settings.ENVIRONMENT,
+                traces_sample_rate=float(settings.SENTRY_TRACES_SAMPLE_RATE),
             )
             logger.info("Sentry initialized")
         except Exception as e:
-            logger.warning(f"Failed to init Sentry: {e}")
+            logger.warning("Failed to init Sentry: %s", e)
 
+    # Middleware order matters: outermost runs first
+    app.add_middleware(GlobalExceptionMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -48,7 +72,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=settings.ALLOWED_HOSTS,
@@ -140,11 +163,23 @@ async def notification_websocket(websocket: WebSocket, user_id: str):
 
 
 @app.get("/api/health")
-def health_check():
+@limiter.limit("10/minute")
+async def health_check(request: Request):
+    db_ok = False
+    try:
+        with engine.connect() as conn:
+            conn.execute(conn.default_schema_name)
+            conn.close()
+        db_ok = True
+    except Exception as exc:
+        logger.warning("Health check DB failure: %s", exc)
+    status = "healthy" if db_ok else "degraded"
     return {
-        "status": "healthy",
+        "status": status,
+        "database": "connected" if db_ok else "disconnected",
         "app": settings.APP_NAME,
         "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
     }
 
 
